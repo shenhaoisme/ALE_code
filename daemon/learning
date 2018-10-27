@@ -1,2 +1,65 @@
 sysv deamon mannul:
-1,关闭所有文件描述符，除了标准输入输出（0 1 2 ）
+1,关闭所有文件描述符，除了标准输入输出（0 1 2 ）,他是为了确保在执行进程中，不会意外的传递文件描述符
+最好是以这种方式实现：迭代到/proc/self/fd,调用getrlimit函数会返回一个值，从文件描述符3 回退到这个值
+原文：iterating through /proc/self/fd, with a fallback of iterating from file descriptor 3 to the value
+           returned by getrlimit() for RLIMIT_NOFILE.
+  不明白！！！
+ 
+2,Reset all signal handlers to their default. This is best done by iterating through the available signals up to the
+           limit of _NSIG and resetting them to SIG_DFL.
+3， Reset the signal mask using sigprocmask().
+4，消除环境阻塞（Sanitize the environment block,）移除可能会对进程造成不好影响到的环境变量
+5， Call fork(),
+6. In the child, call setsid() to detach（分离） from any terminal and create an independent session.
+7. In the child, call fork() again, 重新获得一个终端
+8，在第一个child 里exit，可以确保：该进程重新成为了父进程（the daemon process is re-parented to init/PID 1）
+9，在进程中把标准输入，输出，err都重定向到 /dev/null
+10，umask(0)，把文件创建和目录访问权限最大化
+11，切换目录到 /，比如：该进程挂在在d盘，但这个盘可能需要被卸载，进程为了维护自己，阻止卸载
+12，通过 getpid() 获取到PID，然后写到PID文件中，比如：/run/foobar.pid；；
+说是为了确保该进程不能多次被启动，如果为了这，首先得是互斥的，不能有竞争，而且pid的值，只有在检验的更新，之前的内容就没了！！！
+13，请删除权限，还不清楚！！！
+14，原始进程的初始化完成，可以通过未命名的管道，或者类似的交流通道，因为他们在fork之前创建的，所以在原始进程有效！！！还不清楚？？
+15，原始进程exit，应该在外部通信通道建立好了，再退出。我：14 15应该都是提醒进程的创建所有资源都是可以复制的，在exit fork都应该注意pip是否都初始化好
+了。具体是指哪些还需要学习
+
+
+新版的daemon
+需要去实现的sysV都不需要初始化，像systemd这样的初始化系统的进程显得有点多余，此外，这些步骤可能会干扰进程监管，文件描述符的传递，和别的一些系统
+初始化功能，新的并不推荐上面的步骤（卧槽）
+
+新的初始化系统能保证进程执行时在一个干净的上下文流程中（至于怎么干净？？不清楚）
+为什么呢？
+environment block is sanitized（消毒）（翻译为：环境阻塞被清理）, that the signal handlers and mask is       reset and that no left-over
+file descriptors are passed. Daemons will be executed in their own session, with standard input/output/error
+connected to /dev/null unless otherwise configured. The umask is reset.
+我：其实这些上面也都提到了！！！
+
+一下是新版daemon推荐的步骤：
+1，SIGTERM收到，就关闭进程 cleanly，或者意为彻底关闭进程
+2，SIGHUP收到，重载配置文件
+3，从主守护进程中提供正确的退出代码，就像init系统使用它来检测服务错误和问题。建议遵循以下定义的退出代码方案LSB对SysV init脚本的建议[1]。
+4，如果可以，expose the daemon's control interface  via the D-Bus IPC （进程通信）system and grab（抓） a bus name as last step of
+ initialization.
+ 为什么呢?
+ 
+5，为了在systemd整合，要提供一个 .service file，它包含了start stop进程功能，还要维持daemon
+6，最好依赖 init system（这个好像是模块，上面都直译了）的functionality（功能）去限制进程去访问文件，service和 resource（源程序），也就是说，在
+systemd 这种情况下，要依赖systemd resource的限制控制，而不是实现自己的！！！ 接来下不知道该怎么理解？？？
+rely on systemd's privilege dropping code instead of implementing it in the daemon, and similar. See systemd.exec(5) for the available controls.
+应该是建议使用库函数的意思吧
+
+7，如果使用d-bus，通过提供一个d-bus service activation configuration file 来使得 daemon bus-activatable（总线活跃的）；
+这样有多个好处：1）your daemon may be started lazily on-demand;（按需懒散开始，好像是会自动睡眠），也可以被别的进程并行开始，这可以
+最大化并行，和加快启动速度。你的守护进程可以总线在故障时重新启动而不会丢失任何总线请求队列对可激活服务的请求
+
+
+
+
+
+
+       
+    
+
+
+
