@@ -1,0 +1,88 @@
+/*ale daemon code*/
+
+static void daemonize(char *rundir)
+{
+#if SCEP_DEBUG
+    int noclose=1;
+#else
+    int noclose=0;
+#endif
+    if (daemon(1, noclose) != 0) // wishing to detach themselves
+       //from the controlling terminal and run in the background as system
+       //daemons.
+    {
+       fprintf(stderr, "scepd: cannot daemonize - errno=%d\n", errno);
+       exit(1);
+    }
+    if (rundir) chdir(rundir);
+  /* Child continues */
+	/*clear filemode creation mask*/
+    umask(0);  //CR8018NOE-441 8018 5.20.06 scep command cannot be executed 
+}
+
+/*下面这个是wiring 的代码*/
+void daemonise (const char *pidFile)
+{
+  pid_t pid ;
+  int i ;
+  FILE *fd ;
+
+  syslog (LOG_DAEMON | LOG_INFO, "Becoming daemon") ;
+
+// Fork from the parent
+
+  if ((pid = fork ()) < 0)
+  {
+    syslog (LOG_DAEMON | LOG_ALERT, "Fork no. 1 failed: %m") ;
+    exit (EXIT_FAILURE) ;
+  }
+
+  if (pid > 0)			// Parent - terminate
+    exit (EXIT_SUCCESS) ;
+
+// Now running on the child - become session leader
+
+  if (setsid() < 0)
+  {
+    syslog (LOG_DAEMON | LOG_ALERT, "setsid failed: %m") ;
+    exit (EXIT_FAILURE) ;
+  }
+
+// Ignore a few signals
+
+  signal (SIGCHLD, SIG_IGN) ;
+  signal (SIGHUP,  SIG_IGN) ;
+
+// Fork again
+
+  if ((pid = fork ()) < 0) //失败了
+  {
+    syslog (LOG_DAEMON | LOG_ALERT, "Fork no. 2 failed: %m") ;
+    exit (EXIT_FAILURE) ;
+  }
+
+  if (pid > 0)			// 成功了的话，父进程不跑的
+    exit (EXIT_SUCCESS) ;
+
+// Tidying up - reset umask, change to / and close all files
+
+  umask (0) ;	
+  chdir ("/") ;
+
+  for (i = 0 ; i < sysconf (_SC_OPEN_MAX) ; ++i)
+    close (i) ;
+
+// Write PID into /var/run
+
+  if (pidFile != NULL)
+  {
+    if ((fd = fopen (pidFile, "w")) == NULL)
+    {
+      syslog (LOG_DAEMON | LOG_ALERT, "Unable to write PID file: %m") ;
+      exit (EXIT_FAILURE) ;
+    }
+
+    fprintf (fd, "%d\n", getpid ()) ;
+    fclose (fd) ;
+  }
+}
