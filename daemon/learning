@@ -31,8 +31,7 @@ sysv deamon mannul:
 新的初始化系统能保证进程执行时在一个干净的上下文流程中（至于怎么干净？？不清楚）
 为什么呢？
 environment block is sanitized（消毒）（翻译为：环境阻塞被清理）, that the signal handlers and mask is       reset and that no left-over
-file descriptors are passed. Daemons will be executed in their own session, with standard input/output/error
-connected to /dev/null unless otherwise configured. The umask is reset.
+file descriptors are passed ise configured. The umask is reset.
 我：其实这些上面也都提到了！！！
 
 一下是新版daemon推荐的步骤：
@@ -46,12 +45,45 @@ connected to /dev/null unless otherwise configured. The umask is reset.
 5，为了在systemd整合，要提供一个 .service file，它包含了start stop进程功能，还要维持daemon
 6，最好依赖 init system（这个好像是模块，上面都直译了）的functionality（功能）去限制进程去访问文件，service和 resource（源程序），也就是说，在
 systemd 这种情况下，要依赖systemd resource的限制控制，而不是实现自己的！！！ 接来下不知道该怎么理解？？？
-rely on systemd's privilege dropping code instead of implementing it in the daemon, and similar. See systemd.exec(5) for the available controls.
-应该是建议使用库函数的意思吧
+rely on systemd's privilege dropping code instead of implementing it in the daemon, and similar. See systemd.exec(5) for the available
+controls.应该是建议使用库函数的意思吧
 
 7，如果使用d-bus，通过提供一个d-bus service activation configuration file 来使得 daemon bus-activatable（总线活跃的）；
 这样有多个好处：1）your daemon may be started lazily on-demand;（按需懒散开始，好像是会自动睡眠），也可以被别的进程并行开始，这可以
 最大化并行，和加快启动速度。你的守护进程可以总线在故障时重新启动而不会丢失任何总线请求队列对可激活服务的请求
+8,如果你的进程通过socket提供服务给本地其进程，他应该像 d-bus激活一样，这可以按需开启服务，也要允许服务并行开启（我：可以只在需要的时候开启这个服务
+，并当多个进程调用这个service，可以并行执行）,对于无状态协议（syslog DNS），一个实现了socket-based activation的进程可以在不丢失单个请求的情况下重启，
+9，如果可以，daemon应该通知 Init system about startup completion or status updates via the sd_notify(3)   interface.
+10，不要使用syslog 取log，新型daemon适应fprintf 来log，这其实是通过 init system 来转发 syslog，如果log level 很重要的话，these can be encoded 
+by prefixing individual log lines with strings like "<4>" （我：还是不明白，wiring还是用的是syslog，用到在说），4指 warning，
+遵循与Linux内核的printk（）类似的风格
+
+关于激活：
+这些服务都是被配置为在同一时间里可以被多个进程激活，一个例子：Bluetoothd 当蓝牙硬件插入的一瞬间，或者一个进程通过d-bus借口访问它时，或者一个打印机的进程
+但数据到了ttp 端口，它本激活，或者当一个打印机上电，或者文件在打印机列表里排队。甚至是说想在开机时启动服务，都是需要各种激活，为了最大化并行，下面这些
+激活原理都是。D-bus and 监听socket，实现整个总线和socket的激活方案，而且允许它的客户端以并行的方式开启这个服务，而且所有的通讯渠道都已经建立好了，
+也不用担心会丢失请求。如果是 d-bus，会在bus上排队，如果是socket，会在kernel上排队。
+我：强调是并行，当两个访问同时发生时，像是会开启两个进程（线程）去建立对应的通道，保证每个请求都不会丢失。这些操作又最好给予原有的d-bus
+另外，强调开始这个服务的情况（所谓懒惰式按需开启服务），就跟睡眠，唤醒一样
+激活分了以下几种：
+启动激活：
+Socket-Based Activation：
+
+Bus-Based Activation：
+
+Device-Based Activation:
+
+Device-Based Activation:
+
+Path-Based Activation:
+
+Timer-Based Activation:
+ 
+Other Forms of Activation:
+
+
+
+
 
 
 
