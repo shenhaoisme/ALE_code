@@ -1,0 +1,22 @@
+cmd写法：
+
+1，如果argc <2 --》argc ==1--》没有输入参数，所以打印 usage，并直接退出！！
+2，如果argv[1] == "-h"，也表示没有东西需要处理
+3，判断目前进程是不是在root下执行。是的话，daemonise
+4，把argv 转存一下，做shift，因为可以：ls -a -l
+5，判断cmd：
+    如果不是以 '-'开头，就自动忽略
+    -g :BCM_GPIO mode selected,wiringPiSetupGpio
+    -1 :GPIO-PHYS mode selected,wiringPiSetupPhys
+    -z :No GPIO mode selected
+    
+    -p : 
+      -port:设置端口
+      
+    -x：重新装载 扩展； 格式：-x extension:base:args
+6，setup，每执行一个cmd，就++
+7，如果setup == 0 ，就执行默认初始化
+
+
+          
+    
