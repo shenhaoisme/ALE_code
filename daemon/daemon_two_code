@@ -51,7 +51,9 @@ daemon (int nochdir, int noclose)
 				== makedev (DEV_NULL_MAJOR, DEV_NULL_MINOR))
 #endif
 			    ) {
-				(void)__dup2(fd, STDIN_FILENO);
+				(void)__dup2(fd, STDIN_FILENO);/* Duplicate FD to FD2, closing the old FD2 and making FD2 be
+   open on the same file as FD is.  Return FD2 or -1.  */
+
 				(void)__dup2(fd, STDOUT_FILENO);
 				(void)__dup2(fd, STDERR_FILENO);
 				if (fd > 2)
