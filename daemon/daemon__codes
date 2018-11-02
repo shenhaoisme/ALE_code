@@ -1,3 +1,5 @@
+
+
 /*ale daemon code*/
 
 static void daemonize(char *rundir)
@@ -46,10 +48,10 @@ daemon (int nochdir, int noclose)
 		    && (__builtin_expect (__fxstat64 (_STAT_VER, fd, &st), 0)
 			== 0)) {
 			if (__builtin_expect (S_ISCHR (st.st_mode), 1) != 0
-#if defined DEV_NULL_MAJOR && defined DEV_NULL_MINOR
+			#if defined DEV_NULL_MAJOR && defined DEV_NULL_MINOR
 			    && (st.st_rdev
 				== makedev (DEV_NULL_MAJOR, DEV_NULL_MINOR))
-#endif
+			#endif
 			    ) {
 				(void)__dup2(fd, STDIN_FILENO);/* Duplicate FD to FD2, closing the old FD2 and making FD2 be
    open on the same file as FD is.  Return FD2 or -1.  */
@@ -139,3 +141,26 @@ void daemonise (const char *pidFile)
     fclose (fd) ;
   }
 }
+
+/*
+ dup2:
+  （1）相同的打开文件（管道）。
+  （2）相同的文件指针，即两个文件共享一个文件指针。
+  （3）相同的访问模式。读取、写入。
+  （4）相同的文件状态标识。
+  
+  The makedev(), major(), and minor() functions are not specified in
+       POSIX.1, but are present on many other systems.
+ 
+ These interfaces are defined as macros.  Since glibc 2.3.3, they have
+       been aliases for three GNU-specific functions: gnu_dev_makedev(),
+       gnu_dev_major(), and gnu_dev_minor().  The latter names are exported,
+       but the traditional names are more portable.
+
+       The BSDs expose the definitions for these macros via <sys/types.h>.
+       Depending on the version, glibc also exposes definitions for these
+       macros from that header file if suitable feature test macros are
+       defined.  However, this behavior was deprecated in glibc 2.25, and
+       since glibc 2.28, <sys/types.h> no longer provides these definitions.
+
+*/
